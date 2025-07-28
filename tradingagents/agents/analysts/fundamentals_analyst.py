@@ -10,7 +10,7 @@ def create_fundamentals_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         if toolkit.config["online_tools"]:
-            tools = [toolkit.get_fundamentals_openai]
+            tools = [toolkit.get_fundamentals]
         else:
             tools = [
                 toolkit.get_finnhub_company_insider_sentiment,
@@ -51,10 +51,10 @@ def create_fundamentals_analyst(llm, toolkit):
 
         result = chain.invoke(state["messages"])
 
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        if isinstance(result.content, list):
+            report = "\n\n".join(result.content)
+        else:
+            report = result.content or ""
 
         return {
             "messages": [result],

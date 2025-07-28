@@ -1,25 +1,24 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-
+import os
+from .embedding_provider_factory import EmbeddingProviderFactory
+from google import genai
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
-            self.embedding = "nomic-embed-text"
-        else:
-            self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+        self.config = config
+        self.backend_url = config["backend_url"]
+
+        self.embedding_provider = EmbeddingProviderFactory.create_provider(config)
+
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
-        
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
-        return response.data[0].embedding
+        """Get embedding for a text using the appropriate API"""
+
+        return self.embedding_provider.get_embedding(text)
 
     def add_situations(self, situations_and_advice):
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
@@ -45,7 +44,7 @@ class FinancialSituationMemory:
         )
 
     def get_memories(self, current_situation, n_matches=1):
-        """Find matching recommendations using OpenAI embeddings"""
+        """Find matching recommendations using embeddings"""
         query_embedding = self.get_embedding(current_situation)
 
         results = self.situation_collection.query(
@@ -96,7 +95,7 @@ if __name__ == "__main__":
 
     # Example query
     current_situation = """
-    Market showing increased volatility in tech sector, with institutional investors 
+    Market showing increased volatility in tech sector, with institutional investors
     reducing positions and rising interest rates affecting growth stock valuations
     """
 
